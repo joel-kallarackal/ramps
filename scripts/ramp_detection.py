@@ -67,6 +67,13 @@ class PointCloudSubscriber(Node):
 	
         print(labels)
 
+        # Find midpoint of the cluster
+        x_avg = np.average(clustered_points[:,0])
+        y_avg = np.average(clustered_points[:,1])
+        z_avg = np.average(clustered_points[:,2])
+
+                
+        
     def cluster(self,points):
         model = DBSCAN(eps=0.05, min_samples=20)
         model.fit_predict(points)

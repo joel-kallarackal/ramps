@@ -42,5 +42,6 @@ install(
   PROGRAMS
     scripts/ramp_detection.py
     scripts/pcl_pub.py
+    scripts/waypoint_pub.py
   DESTINATION lib/${PROJECT_NAME}
 )
