@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import String
-from sensor_msgs.msg import PointCloud2, Imu, CameraInfo
+from sensor_msgs.msg import PointCloud2
 
 import numpy as np
 import ros2_numpy as rnp
@@ -13,6 +13,7 @@ import open3d as o3d
 from sklearn.cluster import DBSCAN
 
 from pcl_pub import PointCloudPublisher
+from waypoint_pub import WaypointPublisher
 
 from sensor_msgs_py import point_cloud2 as pc2
 from ctypes import *
@@ -29,6 +30,7 @@ class PointCloudSubscriber(Node):
             10)
         self.pc_subscription  # prevent unused variable warning
         self.point_cloud_pub = PointCloudPublisher("cluster_point_cloud")
+        self.waypoint_publisher = WaypointPublisher(node_name="ramp_waypoint_publisher")
 
     def pc_listener_callback(self, msg: PointCloud2):
         '''
@@ -92,22 +94,25 @@ class PointCloudSubscriber(Node):
             y_avg = np.average(np.append(clustered_points,clustered_points2,axis=0)[:,1])
             z_avg = -np.average(np.append(clustered_points,clustered_points2,axis=0)[:,2])
             clustered_pc = np.append(clustered_points,clustered_points2,axis=0)
-            self.point_cloud_pub.publish_cloud(clustered_pc[:,0],clustered_pc[:,1],clustered_pc[:,2])
+            # self.point_cloud_pub.publish_cloud(clustered_pc[:,0],clustered_pc[:,1],clustered_pc[:,2])
+            self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
 	
         elif (labels[-1]!=-1):
             pcd.points = o3d.utility.Vector3dVector(clustered_points)
             x_avg = np.average(clustered_points[:,0])
             y_avg = np.average(clustered_points[:,1])
             z_avg = -np.average(clustered_points[:,2])
-            self.point_cloud_pub.publish_cloud(clustered_points[:,0],clustered_points[:,1],clustered_points[:,2])
+            self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
+            # self.point_cloud_pub.publish_cloud(clustered_points[:,0],clustered_points[:,1],clustered_points[:,2])
             
         elif (labels2[-1]!=-1):
             pcd.points = o3d.utility.Vector3dVector(clustered_points2)
             x_avg = np.average(clustered_points2[:,0])
             y_avg = np.average(clustered_points2[:,1])
             z_avg = -np.average(clustered_points2[:,2])
-            self.point_cloud_pub.publish_cloud(clustered_points2[:,0],clustered_points2[:,1],clustered_points2[:,2])
-        
+            self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
+            # self.point_cloud_pub.publish_cloud(clustered_points2[:,0],clustered_points2[:,1],clustered_points2[:,2])
+
     def cluster(self,points):
         '''
         Returns clusters from 3D data
@@ -247,10 +252,6 @@ def main(args=None):
     point_cloud_sub = PointCloudSubscriber()
 
     rclpy.spin(point_cloud_sub)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     point_cloud_sub.destroy_node()
     rclpy.shutdown()
 
