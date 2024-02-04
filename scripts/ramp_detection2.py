@@ -18,6 +18,10 @@ from waypoint_pub import WaypointPublisher
 from sensor_msgs_py import point_cloud2 as pc2
 from ctypes import *
 
+'''
+DBSCAN sucks balls for 1D custering
+
+'''
 
 class PointCloudSubscriber(Node):
 
@@ -53,11 +57,19 @@ class PointCloudSubscriber(Node):
 
         # Without using ros2_numpy
         pc = self.convertCloudFromRosToOpen3d(msg)
+
+        # pc = o3d.geometry.PointCloud()
+        # pc.points = o3d.utility.Vector3dVector(clustered_points)
+        # o3d.visualization.draw_geometries([pc])
         
         #Fixing orientation of zed point cloud
         #zed's tilt = 0.37 radians
         pc2 = self.orient_cloud(pc,[[0,-1,0],[1,0,0],[0,0,1]]) # 90 Degree rotation about z-axis
         pc3 = self.orient_cloud(pc,[[1,0,0],[0,-0.3616,0.9323],[0,-0.9323,-0.3616]]) # (-pi/2-0.37) radians rotation about x-axis
+
+        # pc = o3d.geometry.PointCloud()
+        # pc.points = o3d.utility.Vector3dVector(clustered_points)
+        # o3d.visualization.draw_geometries([pc])
 
         # Downsample the point cloud with a voxel of 0.05
         downpc = pc3.voxel_down_sample(voxel_size=0.05)
@@ -66,7 +78,7 @@ class PointCloudSubscriber(Node):
         downpc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.15, max_nn=30))
         
         points = np.asarray(downpc.points)
-        n1 = np.array([0,0.6,0.8])
+        n1 = np.array([0,1,0])
         n2 = -n1 # normal in the opposite direction
 
         normals = np.asarray(downpc.normals)
@@ -75,21 +87,25 @@ class PointCloudSubscriber(Node):
         # We take into account normals pointing in opposite direction also since the goal here is to determine the plane
         points2 = np.append(points,np.array([[0,0,0],]),axis=0)
         normals2 = np.append(normals,np.array([n1,]),axis=0)
-        normals2_z = np.array([np.zeros(len(normals2)),np.zeros(len(normals2)),normals2[:,2]]).T
+
         points3 = np.append(points,np.array([[0,0,0],]),axis=0)
         normals3 = np.append(normals,np.array([n2,]),axis=0)
-        normals3_z = np.array([np.zeros(len(normals3)),np.zeros(len(normals3)),normals3[:,2]]).T
-
-        labels_z = self.cluster(normals2_z)
-        clustered_points = points2[labels_z==labels_z[-1]]
-
-        labels2_z = self.cluster(normals3_z)
-        clustered_points2 = points2[labels2_z==labels2_z[-1]]
+    
+        
 
         # pc = o3d.geometry.PointCloud()
-        # pc.points = o3d.utility.Vector3dVector(clustered_points)
+        # pc.points = o3d.utility.Vector3dVector(normals2_z)
         # o3d.visualization.draw_geometries([pc])
+
+        labels_z = np.array(self.find_cluster1D(normals2[:,1],0.05,n1[1]))
+        clustered_points = points2[labels_z==1]  
         
+        labels2_z = np.array(self.find_cluster1D(normals3[:,1],0.05,n2[1]))
+        clustered_points2 = points3[labels2_z==1]  
+
+        # pc = o3d.geometry.PointCloud()
+        # pc.points = o3d.utility.Vector3dVector(clustered_points2)
+        # o3d.visualization.draw_geometries([pc])      
         
         # find the midpoint of the required cluster and publish waypoint
         pcd = o3d.geometry.PointCloud()
@@ -103,6 +119,7 @@ class PointCloudSubscriber(Node):
             self.point_cloud_pub.publish_cloud(clustered_pc[:,0],clustered_pc[:,1],clustered_pc[:,2])
             self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
 
+            # o3d.visualization.draw_geometries([pcd])
             '''
             TODO: 
                 Kill node once waypoint is published
@@ -117,6 +134,7 @@ class PointCloudSubscriber(Node):
             self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
             self.point_cloud_pub.publish_cloud(clustered_points[:,0],clustered_points[:,1],clustered_points[:,2])
 
+            # o3d.visualization.draw_geometries([pcd])
             '''
             TODO: 
                 Kill node once waypoint is published
@@ -131,6 +149,7 @@ class PointCloudSubscriber(Node):
             self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
             self.point_cloud_pub.publish_cloud(clustered_points2[:,0],clustered_points2[:,1],clustered_points2[:,2])
 
+            # o3d.visualization.draw_geometries([pcd])
             '''
             TODO: 
                 Kill node once waypoint is published
@@ -156,6 +175,15 @@ class PointCloudSubscriber(Node):
         print("number of cluster found: {}".format(len(set(model.labels_))))
         print('cluster for each point: ', model.labels_)
         return model.labels_
+    def find_cluster1D(self,points,eps,q):
+        labels=[]
+        count=0
+        for i in points:
+            if i>q-eps and i<q+eps:
+                labels.append(1) 
+            else: 
+                labels.append(0)
+        return labels
     
     def convertCloudFromRosToOpen3d(self,ros_cloud: PointCloud2):
         '''

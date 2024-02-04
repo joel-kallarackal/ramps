@@ -57,7 +57,7 @@ class PointCloudSubscriber(Node):
         #Fixing orientation of zed point cloud
         #zed's tilt = 0.37 radians
         pc2 = self.orient_cloud(pc,[[0,-1,0],[1,0,0],[0,0,1]]) # 90 Degree rotation about z-axis
-        pc3 = self.orient_cloud(pc,[[1,0,0],[0,-0.3616,0.9323],[0,-0.9323,-0.3616]]) # (-pi/2-0.37) radians rotation about x-axis
+        pc3 = self.orient_cloud(pc2,[[1,0,0],[0,-0.3616,0.9323],[0,-0.9323,-0.3616]]) # (-pi/2-0.37) radians rotation about x-axis
 
         # Downsample the point cloud with a voxel of 0.05
         downpc = pc3.voxel_down_sample(voxel_size=0.05)
@@ -66,7 +66,8 @@ class PointCloudSubscriber(Node):
         downpc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.15, max_nn=30))
         
         points = np.asarray(downpc.points)
-        n1 = np.array([0,0.6,0.8])
+        n1 = np.array([0,1,0])
+        # [,z,]
         n2 = -n1 # normal in the opposite direction
 
         normals = np.asarray(downpc.normals)
@@ -82,9 +83,13 @@ class PointCloudSubscriber(Node):
         clustered_points = points2[labels==labels[-1]]
 
         labels2 = self.cluster(normals3)
-        clustered_points2 = points2[labels2==labels2[-1]]
-        
-        
+        clustered_points2 = points2[labels2==labels2[-1]]   
+
+        # pc = o3d.geometry.PointCloud()
+        # pc.points = o3d.utility.Vector3dVector(clustered_points)
+        # o3d.visualization.draw_geometries([pc])
+
+
         # find the midpoint of the required cluster and publish waypoint
         pcd = o3d.geometry.PointCloud()
         x_avg,y_avg,z_avg = 0,0,0
@@ -94,6 +99,9 @@ class PointCloudSubscriber(Node):
             y_avg = np.average(np.append(clustered_points,clustered_points2,axis=0)[:,1])
             z_avg = -np.average(np.append(clustered_points,clustered_points2,axis=0)[:,2])
             clustered_pc = np.append(clustered_points,clustered_points2,axis=0)
+
+            o3d.visualization.draw_geometries([pcd])
+
             # self.point_cloud_pub.publish_cloud(clustered_pc[:,0],clustered_pc[:,1],clustered_pc[:,2])
             self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
 	
@@ -103,6 +111,8 @@ class PointCloudSubscriber(Node):
             y_avg = np.average(clustered_points[:,1])
             z_avg = -np.average(clustered_points[:,2])
             self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
+
+            o3d.visualization.draw_geometries([pcd])
             # self.point_cloud_pub.publish_cloud(clustered_points[:,0],clustered_points[:,1],clustered_points[:,2])
             
         elif (labels2[-1]!=-1):
@@ -111,6 +121,8 @@ class PointCloudSubscriber(Node):
             y_avg = np.average(clustered_points2[:,1])
             z_avg = -np.average(clustered_points2[:,2])
             self.waypoint_publisher.publish_waypoint(x_avg,y_avg,z_avg)
+
+            o3d.visualization.draw_geometries([pcd])
             # self.point_cloud_pub.publish_cloud(clustered_points2[:,0],clustered_points2[:,1],clustered_points2[:,2])
 
     def cluster(self,points):

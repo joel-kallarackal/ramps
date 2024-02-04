@@ -40,13 +40,12 @@ import time
 
 # kde()
 
-# t1 = time.time()
-# a = array([1000]).reshape(-1, 1)
-# kde = KernelDensity(kernel='gaussian', bandwidth=0.01).fit(a)
-# s = linspace(0,1000)
-# e = kde.score_samples(s.reshape(-1,1))
-# t2 = time.time()
-# print(e)
-# print(t2-t1)
-# plot(s, e)
-
+t1 = time.time()
+a = array([1000]).reshape(-1, 1)
+kde = KernelDensity(kernel='gaussian', bandwidth=0.01).fit(a)
+s = linspace(0,1000)
+e = kde.score_samples(s.reshape(-1,1))
+t2 = time.time()
+print(e)
+print(t2-t1)
+plot(s, e)
