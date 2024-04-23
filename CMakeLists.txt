@@ -41,6 +41,7 @@ install(
 
 install(
   PROGRAMS
+    scripts/ramp_detection_imu.py
     scripts/ramp_detection.py
     scripts/ramp_detection2.py
     scripts/pcl_pub.py
